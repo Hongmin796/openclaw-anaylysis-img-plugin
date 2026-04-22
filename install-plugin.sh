@@ -33,81 +33,28 @@ echo "[2/4] 更新配置文件: $OPENCLAW_CONFIG"
 
 mkdir -p "$(dirname "$OPENCLAW_CONFIG")"
 
-# 使用 'EOF'（带引号）禁止 bash 转义，变量通过 process.env 传入
-OPENCLAW_CONFIG="$OPENCLAW_CONFIG" \
-PLUGIN_ID="$PLUGIN_ID" \
-DOUBAO_API_KEY="$DOUBAO_API_KEY" \
-DOUBAO_MODEL="$DOUBAO_MODEL" \
-OSS_REGION="$OSS_REGION" \
-OSS_ACCESS_KEY_ID="$OSS_ACCESS_KEY_ID" \
-OSS_ACCESS_KEY_SECRET="$OSS_ACCESS_KEY_SECRET" \
-OSS_BUCKET="$OSS_BUCKET" \
-node --input-type=module <<'EOF'
-import fs from 'fs';
+jq \
+  --arg id     "$PLUGIN_ID" \
+  --arg apiKey "$DOUBAO_API_KEY" \
+  --arg model  "$DOUBAO_MODEL" \
+  --arg region "$OSS_REGION" \
+  --arg keyId  "$OSS_ACCESS_KEY_ID" \
+  --arg secret "$OSS_ACCESS_KEY_SECRET" \
+  --arg bucket "$OSS_BUCKET" \
+  '.plugins.entries[$id].config = {
+     apiKey: $apiKey,
+     model:  $model,
+     oss: {
+       region:          $region,
+       accessKeyId:     $keyId,
+       accessKeySecret: $secret,
+       bucket:          $bucket
+     }
+   }' \
+  "$OPENCLAW_CONFIG" > "$OPENCLAW_CONFIG.tmp" \
+  && mv "$OPENCLAW_CONFIG.tmp" "$OPENCLAW_CONFIG"
 
-const configPath   = process.env.OPENCLAW_CONFIG;
-const pluginId     = process.env.PLUGIN_ID;
-const apiKey       = process.env.DOUBAO_API_KEY;
-const model        = process.env.DOUBAO_MODEL;
-const ossRegion    = process.env.OSS_REGION;
-const ossKeyId     = process.env.OSS_ACCESS_KEY_ID;
-const ossKeySecret = process.env.OSS_ACCESS_KEY_SECRET;
-const ossBucket    = process.env.OSS_BUCKET;
-
-let config = {};
-if (fs.existsSync(configPath)) {
-  let raw = fs.readFileSync(configPath, 'utf8');
-
-  // 去除注释
-  raw = raw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-
-  // 逐字符扫描，转义字符串内的裸控制字符（JSON5 允许但标准 JSON 不允许）
-  let result = '';
-  let inStr = false;
-  let esc = false;
-  for (let i = 0; i < raw.length; i++) {
-    const c = raw[i];
-    const code = raw.charCodeAt(i);
-    if (esc)                    { result += c; esc = false; continue; }
-    if (c === '\\' && inStr)    { result += c; esc = true;  continue; }
-    if (c === '"')              { inStr = !inStr; result += c; continue; }
-    if (inStr && code < 32) {
-      if      (code === 10) result += '\\n';
-      else if (code === 13) result += '\\r';
-      else if (code === 9)  result += '\\t';
-      continue;
-    }
-    result += c;
-  }
-  raw = result.replace(/,(\s*[}\]])/g, '$1');
-
-  try {
-    config = JSON.parse(raw);
-  } catch (e) {
-    console.error('无法解析现有配置文件:', e.message);
-    process.exit(1);
-  }
-}
-
-config.plugins ??= {};
-config.plugins.entries ??= {};
-config.plugins.entries[pluginId] = {
-  enabled: true,
-  config: {
-    apiKey,
-    model,
-    oss: {
-      region:          ossRegion,
-      accessKeyId:     ossKeyId,
-      accessKeySecret: ossKeySecret,
-      bucket:          ossBucket,
-    },
-  },
-};
-
-fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-console.log('配置写入成功');
-EOF
+echo "配置写入成功"
 
 # ── 3. 重启 Gateway ────────────────────────────────────────────────────
 echo "[3/4] 重启 OpenClaw Gateway"
