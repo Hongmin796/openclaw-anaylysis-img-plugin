@@ -1,5 +1,10 @@
 {
     "id": "openclaw-image-analysis",
     "name": "Image Analysis Plugin",
-    "description": "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS. Configured via env vars: DOUBAO_API_KEY, DOUBAO_MODEL, OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET"
+    "description": "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS. Configured via env vars: DOUBAO_API_KEY, DOUBAO_MODEL, OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET",
+    "configSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+    }
 }
