@@ -1,6 +1,6 @@
 {
     "name": "@hongmin204324/openclaw-image-analysis",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "type": "module",
     "openclaw": {
         "extensions": [
@@ -22,5 +22,8 @@
     },
     "dependencies": {
         "ali-oss": "^6.23.0"
+    },
+    "scripts": {
+        "upload-install-script": "node scripts/upload-install-to-oss.mjs"
     }
 }

@@ -3,19 +3,38 @@ import { Type } from "@sinclair/typebox";
 import { analyzeImage } from "./src/analyze-image.js";
 import { uploadLocalFile, uploadFromUrl, type OssConfig } from "./src/oss-upload.js";
 
+/** 与 openclaw.plugin.json 中 configSchema 对齐；字段均可选，由 env 兜底 */
+type PluginConfig = {
+  apiKey?: string;
+  model?: string;
+  oss?: Partial<OssConfig>;
+};
+
+function resolveConfig(api: { pluginConfig?: unknown }): {
+  apiKey: string;
+  model: string;
+  ossCfg: OssConfig;
+} {
+  const cfg = (api.pluginConfig ?? {}) as PluginConfig;
+  return {
+    // 插件配置优先于进程环境变量（便于在 openclaw.json 中管理）
+    apiKey: cfg.apiKey ?? process.env.DOUBAO_API_KEY ?? "",
+    model: cfg.model ?? process.env.DOUBAO_MODEL ?? "doubao-seed-2-0-pro-260215",
+    ossCfg: {
+      region: cfg.oss?.region ?? process.env.OSS_REGION ?? "",
+      accessKeyId: cfg.oss?.accessKeyId ?? process.env.OSS_ACCESS_KEY_ID ?? "",
+      accessKeySecret: cfg.oss?.accessKeySecret ?? process.env.OSS_ACCESS_KEY_SECRET ?? "",
+      bucket: cfg.oss?.bucket ?? process.env.OSS_BUCKET ?? "",
+    },
+  };
+}
+
 export default definePluginEntry({
   id: "openclaw-image-analysis",
   name: "Image Analysis Plugin",
   description: "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS",
   register(api) {
-    const apiKey = process.env.DOUBAO_API_KEY ?? "";
-    const model = process.env.DOUBAO_MODEL ?? "doubao-seed-2-0-pro-260215";
-    const ossCfg: OssConfig = {
-      region: process.env.OSS_REGION ?? "",
-      accessKeyId: process.env.OSS_ACCESS_KEY_ID ?? "",
-      accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET ?? "",
-      bucket: process.env.OSS_BUCKET ?? "",
-    };
+    const { apiKey, model, ossCfg } = resolveConfig(api);
 
     // ── 工具1：图片分析 ──────────────────────────────────────────────
     api.registerTool({
@@ -29,7 +48,7 @@ export default definePluginEntry({
       async execute(_id, params) {
         if (!apiKey || !model) {
           return {
-            content: [{ type: "text", text: "Plugin not configured: DOUBAO_API_KEY and DOUBAO_MODEL env vars are required." }],
+            content: [{ type: "text", text: "Plugin not configured: set apiKey and model in plugin config, or DOUBAO_API_KEY / DOUBAO_MODEL environment variables." }],
             details: undefined,
           };
         }
@@ -60,7 +79,7 @@ export default definePluginEntry({
       async execute(_id, params) {
         if (!ossCfg.region || !ossCfg.accessKeyId || !ossCfg.accessKeySecret || !ossCfg.bucket) {
           return {
-            content: [{ type: "text", text: "Plugin not configured: OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET env vars are required." }],
+            content: [{ type: "text", text: "Plugin not configured: set oss.* in plugin config, or OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET environment variables." }],
             details: undefined,
           };
         }
@@ -89,7 +108,7 @@ export default definePluginEntry({
       async execute(_id, params) {
         if (!ossCfg.region || !ossCfg.accessKeyId || !ossCfg.accessKeySecret || !ossCfg.bucket) {
           return {
-            content: [{ type: "text", text: "Plugin not configured: OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET env vars are required." }],
+            content: [{ type: "text", text: "Plugin not configured: set oss.* in plugin config, or OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET environment variables." }],
             details: undefined,
           };
         }

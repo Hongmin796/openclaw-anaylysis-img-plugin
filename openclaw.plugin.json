@@ -1,10 +1,56 @@
 {
-    "id": "openclaw-image-analysis",
-    "name": "Image Analysis Plugin",
-    "description": "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS. Configured via env vars: DOUBAO_API_KEY, DOUBAO_MODEL, OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET",
-    "configSchema": {
+  "id": "openclaw-image-analysis",
+  "name": "Image Analysis Plugin",
+  "description": "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS. Prefer plugin config in openclaw.json; otherwise use env: DOUBAO_API_KEY, DOUBAO_MODEL, OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "apiKey": {
+        "type": "string",
+        "description": "Doubao / Volcengine Ark API key (Bearer token)"
+      },
+      "model": {
+        "type": "string",
+        "description": "Doubao multimodal model id"
+      },
+      "oss": {
         "type": "object",
         "additionalProperties": false,
-        "properties": {}
+        "description": "Aliyun OSS credentials and bucket",
+        "properties": {
+          "region": { "type": "string" },
+          "accessKeyId": { "type": "string" },
+          "accessKeySecret": { "type": "string" },
+          "bucket": { "type": "string" }
+        }
+      }
     }
+  },
+  "uiHints": {
+    "apiKey": {
+      "label": "Doubao API Key",
+      "help": "豆包 / 方舟 API Key；也可通过环境变量 DOUBAO_API_KEY 提供",
+      "sensitive": true
+    },
+    "model": {
+      "label": "Doubao Model",
+      "help": "多模态模型 ID；未填时可用 DOUBAO_MODEL，默认 doubao-seed-2-0-pro-260215"
+    },
+    "oss.region": {
+      "label": "OSS Region",
+      "help": "例如 oss-cn-beijing；或环境变量 OSS_REGION"
+    },
+    "oss.accessKeyId": {
+      "label": "OSS AccessKey ID",
+      "sensitive": true
+    },
+    "oss.accessKeySecret": {
+      "label": "OSS AccessKey Secret",
+      "sensitive": true
+    },
+    "oss.bucket": {
+      "label": "OSS Bucket"
+    }
+  }
 }
