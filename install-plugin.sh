@@ -5,7 +5,7 @@ set -euo pipefail
 PLUGIN_NPM_NAME="${PLUGIN_NPM_NAME:-@hongmin204324/openclaw-image-analysis}"
 # 默认固定带 configSchema 的最低版本；勿仅用裸包名，否则在镜像/缓存下可能仍拿到 1.0.3 等旧包
 # 覆盖示例：PLUGIN_NPM_SPEC='@hongmin204324/openclaw-image-analysis@1.0.8'
-PLUGIN_NPM_SPEC="${PLUGIN_NPM_SPEC:-${PLUGIN_NPM_NAME}@1.0.7}"
+PLUGIN_NPM_SPEC="${PLUGIN_NPM_SPEC:-${PLUGIN_NPM_NAME}@1.0.8}"
 PLUGIN_ID="openclaw-image-analysis"
 # 旧 manifest 使用的 id，需一并从配置里移除，避免网关仍校验旧扩展
 LEGACY_PLUGIN_ID="image-analysis-plugin"
@@ -173,10 +173,18 @@ openclaw plugins install "$TGZ_FILE"
 rm -rf "$TMP_DIR"
 
 # ── 2. 写入环境变量到 systemd drop-in ────────────────────────────────────
-echo "[2/3] 注入环境变量到 Gateway 服务"
-OVERRIDE_DIR="/etc/systemd/system/openclaw-gateway.service.d"
+# root：系统级 unit；普通用户：用户级 unit（与 doctor 安装的 ~/.config/systemd/user/ 一致）
+echo "[2/3] 注入环境变量到 Gateway 服务（systemd drop-in）"
+ENV_DROPIN="openclaw-image-analysis-env.conf"
+if [ "$(id -u)" -eq 0 ]; then
+  OVERRIDE_DIR="/etc/systemd/system/openclaw-gateway.service.d"
+  echo "    使用系统级目录: $OVERRIDE_DIR"
+else
+  OVERRIDE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/openclaw-gateway.service.d"
+  echo "    当前非 root：使用用户级目录: $OVERRIDE_DIR"
+fi
 mkdir -p "$OVERRIDE_DIR"
-cat > "$OVERRIDE_DIR/openclaw-image-analysis-env.conf" << EOF
+cat > "$OVERRIDE_DIR/$ENV_DROPIN" << EOF
 [Service]
 Environment="DOUBAO_API_KEY=$DOUBAO_API_KEY"
 Environment="DOUBAO_MODEL=$DOUBAO_MODEL"
@@ -185,8 +193,12 @@ Environment="OSS_ACCESS_KEY_ID=$OSS_ACCESS_KEY_ID"
 Environment="OSS_ACCESS_KEY_SECRET=$OSS_ACCESS_KEY_SECRET"
 Environment="OSS_BUCKET=$OSS_BUCKET"
 EOF
-systemctl daemon-reload
-echo "环境变量写入成功: $OVERRIDE_DIR/openclaw-image-analysis-env.conf"
+if [ "$(id -u)" -eq 0 ]; then
+  systemctl daemon-reload 2>/dev/null || true
+else
+  systemctl --user daemon-reload 2>/dev/null || echo "    （提示）若未使用 systemd --user 管理 Gateway，可改用手动 export 或写入 openclaw 支持的环境配置。"
+fi
+echo "环境变量写入成功: $OVERRIDE_DIR/$ENV_DROPIN"
 
 # ── 3. 重启 Gateway 并验证 ────────────────────────────────────────────────
 echo "[3/3] 重启 OpenClaw Gateway"

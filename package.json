@@ -1,6 +1,6 @@
 {
     "name": "@hongmin204324/openclaw-image-analysis",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "type": "module",
     "openclaw": {
         "extensions": [
@@ -16,11 +16,11 @@
         }
     },
     "devDependencies": {
-        "@sinclair/typebox": "^0.34.0",
         "openclaw": "2026.3.24-beta.2",
         "typescript": "^5.8.0"
     },
     "dependencies": {
+        "@sinclair/typebox": "^0.34.0",
         "ali-oss": "^6.23.0"
     },
     "scripts": {
