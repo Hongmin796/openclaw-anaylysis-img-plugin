@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ── 插件配置（通过环境变量覆盖，避免明文写在脚本里）──────────────────
 PLUGIN_NPM_NAME="${PLUGIN_NPM_NAME:-@hongmin204324/openclaw-image-analysis}"
-PLUGIN_ID="image-analysis-plugin"
+PLUGIN_ID="openclaw-image-analysis"
 OPENCLAW_CONFIG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
 
 DOUBAO_API_KEY="${DOUBAO_API_KEY:?请设置环境变量 DOUBAO_API_KEY}"
@@ -32,6 +32,7 @@ rm -rf "$TMP_DIR"
 echo "[2/4] 更新配置文件: $OPENCLAW_CONFIG"
 
 mkdir -p "$(dirname "$OPENCLAW_CONFIG")"
+[ -f "$OPENCLAW_CONFIG" ] || echo '{}' > "$OPENCLAW_CONFIG"
 
 jq \
   --arg id     "$PLUGIN_ID" \

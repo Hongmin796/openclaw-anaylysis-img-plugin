@@ -10,7 +10,7 @@ type PluginConfig = {
 };
 
 export default definePluginEntry({
-  id: "image-analysis-plugin",
+  id: "openclaw-image-analysis",
   name: "Image Analysis Plugin",
   description: "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS",
   register(api) {
