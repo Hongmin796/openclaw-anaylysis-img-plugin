@@ -58,6 +58,92 @@ if [ -d "$LEGACY_EXT_DIR" ]; then
   rm -rf "$LEGACY_EXT_DIR"
 fi
 
+# 网关会扫描 extensions 与 plugins.load.paths：任一 openclaw.plugin.json 缺少合法 configSchema 都会导致「整表配置无效」、进而无法 install。
+# 将不合规目录重命名为含 .disabled（OpenClaw 会忽略该目录名），避免第三方旧包阻塞安装。
+echo "    扫描并隔离 manifest 缺少 configSchema 的扩展目录…"
+OPENCLAW_CONFIG_PATH="$OPENCLAW_CONFIG" EXTENSIONS_ROOT="${HOME}/.openclaw/extensions" node <<'NODE'
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+
+const home = os.homedir();
+const extRoot = process.env.EXTENSIONS_ROOT || path.join(home, ".openclaw", "extensions");
+const cfgPath = process.env.OPENCLAW_CONFIG_PATH || "";
+
+function badConfigSchema(cs) {
+  return cs === undefined || cs === null || typeof cs !== "object" || Array.isArray(cs);
+}
+
+function shouldSkipDirName(name) {
+  const low = String(name).toLowerCase();
+  return low.endsWith(".bak") || low.includes(".backup-") || low.includes(".disabled");
+}
+
+function quarantine(dir, tag) {
+  const parent = path.dirname(dir);
+  const base = path.basename(dir);
+  const target = path.join(parent, `${base}.disabled-openclaw-${Date.now()}-${tag}`);
+  fs.renameSync(dir, target);
+  console.log(`    已隔离: ${dir} -> ${target}`);
+}
+
+function scanPluginRoot(dir) {
+  if (!dir) return;
+  let st;
+  try {
+    st = fs.statSync(dir);
+  } catch {
+    return;
+  }
+  if (!st.isDirectory()) return;
+  const mf = path.join(dir, "openclaw.plugin.json");
+  if (!fs.existsSync(mf)) return;
+  let raw;
+  try {
+    raw = JSON.parse(fs.readFileSync(mf, "utf8"));
+  } catch {
+    quarantine(dir, "bad-json");
+    return;
+  }
+  if (badConfigSchema(raw.configSchema)) quarantine(dir, "no-configSchema");
+}
+
+try {
+  const entries = fs.readdirSync(extRoot, { withFileTypes: true });
+  for (const ent of entries) {
+    if (!ent.isDirectory()) continue;
+    if (shouldSkipDirName(ent.name)) continue;
+    scanPluginRoot(path.join(extRoot, ent.name));
+  }
+} catch (e) {
+  if (e && e.code !== "ENOENT") console.warn("    扫描 extensions 失败:", String(e));
+}
+
+if (cfgPath && fs.existsSync(cfgPath)) {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+    const paths = cfg?.plugins?.load?.paths;
+    if (Array.isArray(paths)) {
+      for (const p of paths) {
+        if (typeof p !== "string" || !p.trim()) continue;
+        let resolved = p.trim();
+        if (resolved.startsWith("~/")) resolved = path.join(home, resolved.slice(2));
+        else if (resolved === "~") resolved = home;
+        else if (resolved.startsWith("~")) resolved = path.join(home, resolved.slice(1));
+        scanPluginRoot(resolved);
+      }
+    }
+  } catch (e) {
+    console.warn("    读取 plugins.load.paths 失败:", String(e));
+  }
+}
+NODE
+
+if command -v openclaw >/dev/null 2>&1; then
+  echo "    尝试 openclaw doctor --fix --yes（清理过时配置项）…"
+  openclaw doctor --fix --yes 2>/dev/null || true
+fi
+
 TMP_DIR=$(mktemp -d)
 echo "    下载 tgz 到 $TMP_DIR ..."
 if command -v npm >/dev/null 2>&1; then
