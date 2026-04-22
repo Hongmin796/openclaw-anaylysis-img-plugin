@@ -21,6 +21,11 @@ OSS_BUCKET="${OSS_BUCKET:?请设置环境变量 OSS_BUCKET}"
 # 打包容许指定 registry：国内镜像常滞后于官方，导致 ETARGET「找不到 1.0.x」
 # 覆盖示例：NPM_REGISTRY=https://registry.npmmirror.com
 NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
+# npm pack @scope/pkg@ver 仍会受 ~/.npmrc 里「@scope:registry=镜像」影响；镜像元数据有版本但 tarball 未同步时会 ETARGET。
+# 默认改用 registry 上该版本的固定 tarball URL（可走整包覆盖：PLUGIN_TGZ_URL=...tgz）
+PLUGIN_VER="${PLUGIN_NPM_SPEC##*@}"
+NPM_REG_BASE="${NPM_REGISTRY%/}"
+PLUGIN_TGZ_URL="${PLUGIN_TGZ_URL:-${NPM_REG_BASE}/@hongmin204324%2Fopenclaw-image-analysis/-/openclaw-image-analysis-${PLUGIN_VER}.tgz}"
 
 # ── 1. 安装插件 ─────────────────────────────────────────────────────────
 echo "[1/3] 安装插件: $PLUGIN_NPM_SPEC（registry: $NPM_REGISTRY）"
@@ -166,7 +171,11 @@ if command -v npm >/dev/null 2>&1; then
     echo "    当前 registry 上 ${PLUGIN_NPM_NAME} 的 latest 版本: $REG_VER"
   fi
 fi
-npm pack "$PLUGIN_NPM_SPEC" --pack-destination "$TMP_DIR" --quiet --registry="$NPM_REGISTRY"
+echo "    拉取 tarball: $PLUGIN_TGZ_URL"
+if ! npm pack "$PLUGIN_TGZ_URL" --pack-destination "$TMP_DIR" --quiet; then
+  echo "    （回退）npm pack \"$PLUGIN_NPM_SPEC\" --registry=\"$NPM_REGISTRY\""
+  npm pack "$PLUGIN_NPM_SPEC" --pack-destination "$TMP_DIR" --quiet --registry="$NPM_REGISTRY"
+fi
 TGZ_FILE=$(ls "$TMP_DIR"/*.tgz | head -1)
 echo "    从本地安装: $TGZ_FILE"
 openclaw plugins install "$TGZ_FILE"
