@@ -39,6 +39,8 @@ function rmPlugin(pid) {
 }
 rmPlugin(id);
 rmPlugin(legacy);
+// 旧版安装失败时可能以 npm scoped 名写入 entries（与 manifest id 不一致）
+rmPlugin('@hongmin204324/openclaw-image-analysis');
 fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
 " "$OPENCLAW_CONFIG" "$PLUGIN_ID" "$LEGACY_PLUGIN_ID"
   echo "    已清理 openclaw.json 中 ${PLUGIN_ID} / ${LEGACY_PLUGIN_ID} 的 entries、installs、allow"
@@ -57,6 +59,18 @@ if [ -d "$LEGACY_EXT_DIR" ]; then
   echo "    删除遗留扩展目录: $LEGACY_EXT_DIR ..."
   rm -rf "$LEGACY_EXT_DIR"
 fi
+
+# 若历史上 manifest 未通过校验，OpenClaw 会用 npm scoped 包名落盘为哈希目录名（见 encodePluginInstallDirName），
+# 与 manifest 中的 id（openclaw-image-analysis）不同，仅删上一段 PLUGIN_DIR 删不到它，会导致 doctor 一直报 configSchema。
+EXT_BASE="${HOME}/.openclaw/extensions"
+shopt -s nullglob
+for d in "${EXT_BASE}"/@hongmin204324-openclaw-image-analysis-*; do
+  if [ -d "$d" ]; then
+    echo "    删除旧 scoped 哈希扩展目录: $d ..."
+    rm -rf "$d"
+  fi
+done
+shopt -u nullglob
 
 # 网关会扫描 extensions 与 plugins.load.paths：任一 openclaw.plugin.json 缺少合法 configSchema 都会导致「整表配置无效」、进而无法 install。
 # 将不合规目录重命名为含 .disabled（OpenClaw 会忽略该目录名），避免第三方旧包阻塞安装。
