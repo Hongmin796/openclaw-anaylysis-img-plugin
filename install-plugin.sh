@@ -5,7 +5,7 @@ set -euo pipefail
 PLUGIN_NPM_NAME="${PLUGIN_NPM_NAME:-@hongmin204324/openclaw-image-analysis}"
 # 默认固定带 configSchema 的最低版本；勿仅用裸包名，否则在镜像/缓存下可能仍拿到 1.0.3 等旧包
 # 覆盖示例：PLUGIN_NPM_SPEC='@hongmin204324/openclaw-image-analysis@1.0.8'
-PLUGIN_NPM_SPEC="${PLUGIN_NPM_SPEC:-${PLUGIN_NPM_NAME}@1.0.8}"
+PLUGIN_NPM_SPEC="${PLUGIN_NPM_SPEC:-${PLUGIN_NPM_NAME}@1.0.9}"
 PLUGIN_ID="openclaw-image-analysis"
 # 旧 manifest 使用的 id，需一并从配置里移除，避免网关仍校验旧扩展
 LEGACY_PLUGIN_ID="image-analysis-plugin"
