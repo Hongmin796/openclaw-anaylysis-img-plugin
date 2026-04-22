@@ -18,8 +18,12 @@ OSS_ACCESS_KEY_ID="${OSS_ACCESS_KEY_ID:?请设置环境变量 OSS_ACCESS_KEY_ID}
 OSS_ACCESS_KEY_SECRET="${OSS_ACCESS_KEY_SECRET:?请设置环境变量 OSS_ACCESS_KEY_SECRET}"
 OSS_BUCKET="${OSS_BUCKET:?请设置环境变量 OSS_BUCKET}"
 
+# 打包容许指定 registry：国内镜像常滞后于官方，导致 ETARGET「找不到 1.0.x」
+# 覆盖示例：NPM_REGISTRY=https://registry.npmmirror.com
+NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
+
 # ── 1. 安装插件 ─────────────────────────────────────────────────────────
-echo "[1/3] 安装插件: $PLUGIN_NPM_SPEC"
+echo "[1/3] 安装插件: $PLUGIN_NPM_SPEC（registry: $NPM_REGISTRY）"
 
 # 先清理 openclaw.json 中的过期条目（含 installs 与旧 id），避免校验旧包 manifest
 if [ -f "$OPENCLAW_CONFIG" ]; then
@@ -49,12 +53,12 @@ fi
 TMP_DIR=$(mktemp -d)
 echo "    下载 tgz 到 $TMP_DIR ..."
 if command -v npm >/dev/null 2>&1; then
-  REG_VER="$(npm view "$PLUGIN_NPM_NAME" version 2>/dev/null || true)"
+  REG_VER="$(npm view "$PLUGIN_NPM_NAME" version --registry="$NPM_REGISTRY" 2>/dev/null || true)"
   if [ -n "$REG_VER" ]; then
-    echo "    registry 上 ${PLUGIN_NPM_NAME} 的 latest 版本: $REG_VER"
+    echo "    当前 registry 上 ${PLUGIN_NPM_NAME} 的 latest 版本: $REG_VER"
   fi
 fi
-npm pack "$PLUGIN_NPM_SPEC" --pack-destination "$TMP_DIR" --quiet
+npm pack "$PLUGIN_NPM_SPEC" --pack-destination "$TMP_DIR" --quiet --registry="$NPM_REGISTRY"
 TGZ_FILE=$(ls "$TMP_DIR"/*.tgz | head -1)
 echo "    从本地安装: $TGZ_FILE"
 openclaw plugins install "$TGZ_FILE"
