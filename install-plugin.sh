@@ -4,6 +4,7 @@ set -euo pipefail
 # ── 插件配置（通过环境变量注入，不写入 openclaw.json）──────────────────
 PLUGIN_NPM_NAME="${PLUGIN_NPM_NAME:-@hongmin204324/openclaw-image-analysis}"
 PLUGIN_ID="openclaw-image-analysis"
+OPENCLAW_CONFIG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
 
 DOUBAO_API_KEY="${DOUBAO_API_KEY:?请设置环境变量 DOUBAO_API_KEY}"
 DOUBAO_MODEL="${DOUBAO_MODEL:-doubao-seed-2-0-pro-260215}"
@@ -14,11 +15,27 @@ OSS_BUCKET="${OSS_BUCKET:?请设置环境变量 OSS_BUCKET}"
 
 # ── 1. 安装插件 ─────────────────────────────────────────────────────────
 echo "[1/3] 安装插件: $PLUGIN_NPM_NAME"
+
+# 先清理 openclaw.json 中的过期条目，避免 openclaw 校验时找不到 manifest 报错
+if [ -f "$OPENCLAW_CONFIG" ]; then
+  node -e "
+const fs = require('fs');
+const p = process.argv[1], id = process.argv[2];
+const cfg = JSON.parse(fs.readFileSync(p, 'utf8'));
+if (cfg.plugins && cfg.plugins.entries) delete cfg.plugins.entries[id];
+if (cfg.plugins && Array.isArray(cfg.plugins.allow))
+  cfg.plugins.allow = cfg.plugins.allow.filter(function(x) { return x !== id; });
+fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
+" "$OPENCLAW_CONFIG" "$PLUGIN_ID"
+  echo "    已清理 openclaw.json 中的旧条目"
+fi
+
 PLUGIN_DIR="$HOME/.openclaw/extensions/$PLUGIN_ID"
 if [ -d "$PLUGIN_DIR" ]; then
-  echo "    检测到旧版本，删除 $PLUGIN_DIR ..."
+  echo "    删除旧插件目录: $PLUGIN_DIR ..."
   rm -rf "$PLUGIN_DIR"
 fi
+
 TMP_DIR=$(mktemp -d)
 echo "    下载 tgz 到 $TMP_DIR ..."
 npm pack "$PLUGIN_NPM_NAME" --pack-destination "$TMP_DIR" --quiet
