@@ -23,8 +23,7 @@
           },
           "required": ["region", "accessKeyId", "accessKeySecret", "bucket"]
         }
-      },
-      "required": ["apiKey", "model", "oss"]
+      }
     },
     "uiHints": {
       "apiKey": {

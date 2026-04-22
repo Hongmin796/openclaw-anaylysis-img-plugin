@@ -13,8 +13,12 @@ OSS_ACCESS_KEY_ID="${OSS_ACCESS_KEY_ID:?请设置环境变量 OSS_ACCESS_KEY_ID}
 OSS_ACCESS_KEY_SECRET="${OSS_ACCESS_KEY_SECRET:?请设置环境变量 OSS_ACCESS_KEY_SECRET}"
 OSS_BUCKET="${OSS_BUCKET:?请设置环境变量 OSS_BUCKET}"
 
-# ── 1. 先写入插件配置（install 时 openclaw 会校验配置，必须先写）──────
-echo "[1/4] 写入插件配置: $OPENCLAW_CONFIG"
+# ── 1. 安装插件 ────────────────────────────────────────────────────────
+echo "[1/4] 安装插件: $PLUGIN_PACKAGE"
+openclaw plugins install "$PLUGIN_PACKAGE"
+
+# ── 2. 写入插件配置 ────────────────────────────────────────────────────
+echo "[2/4] 更新配置文件: $OPENCLAW_CONFIG"
 
 mkdir -p "$(dirname "$OPENCLAW_CONFIG")"
 
@@ -25,10 +29,33 @@ const configPath = '$OPENCLAW_CONFIG';
 
 let config = {};
 if (fs.existsSync(configPath)) {
-  const raw = fs.readFileSync(configPath, 'utf8')
-    .replace(/\/\/[^\n]*/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/,(\s*[}\]])/g, '\$1');
+  let raw = fs.readFileSync(configPath, 'utf8');
+
+  // 去除注释
+  raw = raw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // 逐字符扫描，转义字符串内的裸控制字符（JSON5 允许但标准 JSON 不允许）
+  let result = '';
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    const code = raw.charCodeAt(i);
+    if (esc)          { result += c; esc = false; continue; }
+    if (c === '\\' && inStr) { result += c; esc = true; continue; }
+    if (c === '"')    { inStr = !inStr; result += c; continue; }
+    if (inStr && code < 32) {
+      if      (code === 10) result += '\\n';
+      else if (code === 13) result += '\\r';
+      else if (code === 9)  result += '\\t';
+      // 其他控制字符跳过
+      continue;
+    }
+    result += c;
+  }
+  // 去除尾随逗号
+  raw = result.replace(/,(\s*[}\]])/g, '\$1');
+
   try {
     config = JSON.parse(raw);
   } catch (e) {
@@ -56,10 +83,6 @@ config.plugins.entries['$PLUGIN_ID'] = {
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log('配置写入成功');
 EOF
-
-# ── 2. 安装插件 ────────────────────────────────────────────────────────
-echo "[2/4] 安装插件: $PLUGIN_PACKAGE"
-openclaw plugins install "$PLUGIN_PACKAGE"
 
 # ── 3. 重启 Gateway ────────────────────────────────────────────────────
 echo "[3/4] 重启 OpenClaw Gateway"
