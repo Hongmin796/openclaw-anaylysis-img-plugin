@@ -15,7 +15,6 @@ OSS_BUCKET="${OSS_BUCKET:?请设置环境变量 OSS_BUCKET}"
 
 # ── 1. 安装插件（从 npm 下载 tgz，绕过 ClawHub）─────────────────────
 echo "[1/4] 安装插件: $PLUGIN_NPM_NAME"
-# 如果已存在则先删除旧目录，避免 "plugin already exists" 报错
 PLUGIN_DIR="$HOME/.openclaw/extensions/$PLUGIN_ID"
 if [ -d "$PLUGIN_DIR" ]; then
   echo "    检测到旧版本，删除 $PLUGIN_DIR ..."
@@ -34,10 +33,26 @@ echo "[2/4] 更新配置文件: $OPENCLAW_CONFIG"
 
 mkdir -p "$(dirname "$OPENCLAW_CONFIG")"
 
-node --input-type=module <<EOF
+# 使用 'EOF'（带引号）禁止 bash 转义，变量通过 process.env 传入
+OPENCLAW_CONFIG="$OPENCLAW_CONFIG" \
+PLUGIN_ID="$PLUGIN_ID" \
+DOUBAO_API_KEY="$DOUBAO_API_KEY" \
+DOUBAO_MODEL="$DOUBAO_MODEL" \
+OSS_REGION="$OSS_REGION" \
+OSS_ACCESS_KEY_ID="$OSS_ACCESS_KEY_ID" \
+OSS_ACCESS_KEY_SECRET="$OSS_ACCESS_KEY_SECRET" \
+OSS_BUCKET="$OSS_BUCKET" \
+node --input-type=module <<'EOF'
 import fs from 'fs';
 
-const configPath = '$OPENCLAW_CONFIG';
+const configPath   = process.env.OPENCLAW_CONFIG;
+const pluginId     = process.env.PLUGIN_ID;
+const apiKey       = process.env.DOUBAO_API_KEY;
+const model        = process.env.DOUBAO_MODEL;
+const ossRegion    = process.env.OSS_REGION;
+const ossKeyId     = process.env.OSS_ACCESS_KEY_ID;
+const ossKeySecret = process.env.OSS_ACCESS_KEY_SECRET;
+const ossBucket    = process.env.OSS_BUCKET;
 
 let config = {};
 if (fs.existsSync(configPath)) {
@@ -53,20 +68,18 @@ if (fs.existsSync(configPath)) {
   for (let i = 0; i < raw.length; i++) {
     const c = raw[i];
     const code = raw.charCodeAt(i);
-    if (esc)          { result += c; esc = false; continue; }
-    if (c === '\\' && inStr) { result += c; esc = true; continue; }
-    if (c === '"')    { inStr = !inStr; result += c; continue; }
+    if (esc)                    { result += c; esc = false; continue; }
+    if (c === '\\' && inStr)    { result += c; esc = true;  continue; }
+    if (c === '"')              { inStr = !inStr; result += c; continue; }
     if (inStr && code < 32) {
       if      (code === 10) result += '\\n';
       else if (code === 13) result += '\\r';
       else if (code === 9)  result += '\\t';
-      // 其他控制字符跳过
       continue;
     }
     result += c;
   }
-  // 去除尾随逗号
-  raw = result.replace(/,(\s*[}\]])/g, '\$1');
+  raw = result.replace(/,(\s*[}\]])/g, '$1');
 
   try {
     config = JSON.parse(raw);
@@ -78,18 +91,18 @@ if (fs.existsSync(configPath)) {
 
 config.plugins ??= {};
 config.plugins.entries ??= {};
-config.plugins.entries['$PLUGIN_ID'] = {
+config.plugins.entries[pluginId] = {
   enabled: true,
   config: {
-    apiKey: '$DOUBAO_API_KEY',
-    model: '$DOUBAO_MODEL',
+    apiKey,
+    model,
     oss: {
-      region: '$OSS_REGION',
-      accessKeyId: '$OSS_ACCESS_KEY_ID',
-      accessKeySecret: '$OSS_ACCESS_KEY_SECRET',
-      bucket: '$OSS_BUCKET'
-    }
-  }
+      region:          ossRegion,
+      accessKeyId:     ossKeyId,
+      accessKeySecret: ossKeySecret,
+      bucket:          ossBucket,
+    },
+  },
 };
 
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
@@ -105,4 +118,4 @@ echo "[4/4] 验证插件状态"
 openclaw plugins inspect "$PLUGIN_ID"
 
 echo ""
-echo "✅ 插件安装并配置完成：$PLUGIN_PACKAGE"
+echo "✅ 插件安装并配置完成：$PLUGIN_NPM_NAME"
