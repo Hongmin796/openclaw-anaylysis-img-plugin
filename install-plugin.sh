@@ -50,6 +50,14 @@ if [ -d "$PLUGIN_DIR" ]; then
   rm -rf "$PLUGIN_DIR"
 fi
 
+# OpenClaw 会扫描 ~/.openclaw/extensions 下每个子目录并读取 openclaw.plugin.json。
+# 若只从 openclaw.json 删掉 legacy 条目、磁盘上仍保留旧目录，旧包无 configSchema 会导致整体验证失败。
+LEGACY_EXT_DIR="$HOME/.openclaw/extensions/$LEGACY_PLUGIN_ID"
+if [ -d "$LEGACY_EXT_DIR" ]; then
+  echo "    删除遗留扩展目录: $LEGACY_EXT_DIR ..."
+  rm -rf "$LEGACY_EXT_DIR"
+fi
+
 TMP_DIR=$(mktemp -d)
 echo "    下载 tgz 到 $TMP_DIR ..."
 if command -v npm >/dev/null 2>&1; then
