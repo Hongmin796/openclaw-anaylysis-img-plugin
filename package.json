@@ -1,0 +1,26 @@
+{
+    "name": "@hongmin204324/openclaw-image-analysis",
+    "version": "1.0.0",
+    "type": "module",
+    "openclaw": {
+        "extensions": [
+            "./index.ts"
+        ],
+        "compat": {
+            "pluginApi": ">=2026.3.24-beta.2",
+            "minGatewayVersion": "2026.3.24-beta.2"
+        },
+        "build": {
+            "openclawVersion": "2026.3.24-beta.2",
+            "pluginSdkVersion": "2026.3.24-beta.2"
+        }
+    },
+    "devDependencies": {
+        "@sinclair/typebox": "^0.34.0",
+        "openclaw": "2026.3.24-beta.2",
+        "typescript": "^5.8.0"
+    },
+    "dependencies": {
+        "ali-oss": "^6.23.0"
+    }
+}
