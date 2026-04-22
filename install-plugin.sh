@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ── 插件配置（通过环境变量覆盖，避免明文写在脚本里）──────────────────
-PLUGIN_PACKAGE="${PLUGIN_PACKAGE:-npm:@hongmin204324/openclaw-image-analysis}"
+PLUGIN_NPM_NAME="${PLUGIN_NPM_NAME:-@hongmin204324/openclaw-image-analysis}"
 PLUGIN_ID="image-analysis-plugin"
 OPENCLAW_CONFIG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
 
@@ -13,9 +13,15 @@ OSS_ACCESS_KEY_ID="${OSS_ACCESS_KEY_ID:?请设置环境变量 OSS_ACCESS_KEY_ID}
 OSS_ACCESS_KEY_SECRET="${OSS_ACCESS_KEY_SECRET:?请设置环境变量 OSS_ACCESS_KEY_SECRET}"
 OSS_BUCKET="${OSS_BUCKET:?请设置环境变量 OSS_BUCKET}"
 
-# ── 1. 安装插件 ────────────────────────────────────────────────────────
-echo "[1/4] 安装插件: $PLUGIN_PACKAGE"
-openclaw plugins install "$PLUGIN_PACKAGE"
+# ── 1. 安装插件（从 npm 下载 tgz，绕过 ClawHub）─────────────────────
+echo "[1/4] 安装插件: $PLUGIN_NPM_NAME"
+TMP_DIR=$(mktemp -d)
+echo "    下载 tgz 到 $TMP_DIR ..."
+npm pack "$PLUGIN_NPM_NAME" --pack-destination "$TMP_DIR" --quiet
+TGZ_FILE=$(ls "$TMP_DIR"/*.tgz | head -1)
+echo "    从本地安装: $TGZ_FILE"
+openclaw plugins install "$TGZ_FILE"
+rm -rf "$TMP_DIR"
 
 # ── 2. 写入插件配置 ────────────────────────────────────────────────────
 echo "[2/4] 更新配置文件: $OPENCLAW_CONFIG"
