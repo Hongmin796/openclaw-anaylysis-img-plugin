@@ -3,18 +3,19 @@ import { Type } from "@sinclair/typebox";
 import { analyzeImage } from "./src/analyze-image.js";
 import { uploadLocalFile, uploadFromUrl, type OssConfig } from "./src/oss-upload.js";
 
-type PluginConfig = {
-  apiKey: string;
-  model: string;
-  oss: OssConfig;
-};
-
 export default definePluginEntry({
   id: "openclaw-image-analysis",
   name: "Image Analysis Plugin",
   description: "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS",
   register(api) {
-    const cfg = (api.pluginConfig ?? {}) as PluginConfig;
+    const apiKey = process.env.DOUBAO_API_KEY ?? "";
+    const model = process.env.DOUBAO_MODEL ?? "doubao-seed-2-0-pro-260215";
+    const ossCfg: OssConfig = {
+      region: process.env.OSS_REGION ?? "",
+      accessKeyId: process.env.OSS_ACCESS_KEY_ID ?? "",
+      accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET ?? "",
+      bucket: process.env.OSS_BUCKET ?? "",
+    };
 
     // ── 工具1：图片分析 ──────────────────────────────────────────────
     api.registerTool({
@@ -26,16 +27,16 @@ export default definePluginEntry({
         desc: Type.String({ description: "Description of how to analyze the image" }),
       }),
       async execute(_id, params) {
-        if (!cfg.apiKey || !cfg.model) {
+        if (!apiKey || !model) {
           return {
-            content: [{ type: "text", text: "Plugin not configured: apiKey and model are required." }],
+            content: [{ type: "text", text: "Plugin not configured: DOUBAO_API_KEY and DOUBAO_MODEL env vars are required." }],
             details: undefined,
           };
         }
 
         const result = await analyzeImage({
-          apiKey: cfg.apiKey,
-          model: cfg.model,
+          apiKey,
+          model,
           imageUrl: params.image_url,
           desc: params.desc,
         });
@@ -57,14 +58,14 @@ export default definePluginEntry({
         object_path: Type.String({ description: "Target object path in OSS, e.g. exampledir/exampleobject.txt" }),
       }),
       async execute(_id, params) {
-        if (!cfg.oss?.region || !cfg.oss?.accessKeyId || !cfg.oss?.accessKeySecret || !cfg.oss?.bucket) {
+        if (!ossCfg.region || !ossCfg.accessKeyId || !ossCfg.accessKeySecret || !ossCfg.bucket) {
           return {
-            content: [{ type: "text", text: "Plugin not configured: oss.region, oss.accessKeyId, oss.accessKeySecret, oss.bucket are required." }],
+            content: [{ type: "text", text: "Plugin not configured: OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET env vars are required." }],
             details: undefined,
           };
         }
 
-        const result = await uploadLocalFile(cfg.oss, params.local_path, params.object_path);
+        const result = await uploadLocalFile(ossCfg, params.local_path, params.object_path);
         const text = result.ok
           ? `上传成功\nObject: ${result.name}\nURL: ${result.url}`
           : `上传失败: ${result.error}`;
@@ -86,14 +87,14 @@ export default definePluginEntry({
         object_path: Type.String({ description: "Target object path in OSS, e.g. images/photo.jpg" }),
       }),
       async execute(_id, params) {
-        if (!cfg.oss?.region || !cfg.oss?.accessKeyId || !cfg.oss?.accessKeySecret || !cfg.oss?.bucket) {
+        if (!ossCfg.region || !ossCfg.accessKeyId || !ossCfg.accessKeySecret || !ossCfg.bucket) {
           return {
-            content: [{ type: "text", text: "Plugin not configured: oss.region, oss.accessKeyId, oss.accessKeySecret, oss.bucket are required." }],
+            content: [{ type: "text", text: "Plugin not configured: OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET env vars are required." }],
             details: undefined,
           };
         }
 
-        const result = await uploadFromUrl(cfg.oss, params.source_url, params.object_path);
+        const result = await uploadFromUrl(ossCfg, params.source_url, params.object_path);
         const text = result.ok
           ? `上传成功\nObject: ${result.name}\nURL: ${result.url}`
           : `上传失败: ${result.error}`;

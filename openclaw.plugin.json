@@ -1,58 +1,5 @@
 {
     "id": "openclaw-image-analysis",
     "name": "Image Analysis Plugin",
-    "description": "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS",
-    "configSchema": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "apiKey": {
-          "type": "string"
-        },
-        "model": {
-          "type": "string"
-        },
-        "oss": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "region": { "type": "string" },
-            "accessKeyId": { "type": "string" },
-            "accessKeySecret": { "type": "string" },
-            "bucket": { "type": "string" }
-          },
-          "required": ["region", "accessKeyId", "accessKeySecret", "bucket"]
-        }
-      }
-    },
-    "uiHints": {
-      "apiKey": {
-        "label": "Doubao API Key",
-        "help": "豆包 API 密钥（Bearer token）",
-        "placeholder": "d47c5b05-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-        "sensitive": true
-      },
-      "model": {
-        "label": "Doubao Model",
-        "help": "豆包多模态模型 ID",
-        "placeholder": "doubao-seed-2-0-pro-260215"
-      },
-      "oss.region": {
-        "label": "OSS Region",
-        "help": "Bucket 所在地域，例如 oss-cn-hangzhou",
-        "placeholder": "oss-cn-hangzhou"
-      },
-      "oss.accessKeyId": {
-        "label": "OSS AccessKey ID",
-        "sensitive": true
-      },
-      "oss.accessKeySecret": {
-        "label": "OSS AccessKey Secret",
-        "sensitive": true
-      },
-      "oss.bucket": {
-        "label": "OSS Bucket",
-        "placeholder": "examplebucket"
-      }
-    }
+    "description": "Analyzes images using Doubao multimodal model, and uploads files to Aliyun OSS. Configured via env vars: DOUBAO_API_KEY, DOUBAO_MODEL, OSS_REGION, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET"
 }
