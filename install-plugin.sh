@@ -3,7 +3,12 @@ set -euo pipefail
 
 # ── 插件配置（通过环境变量注入，不写入 openclaw.json）──────────────────
 PLUGIN_NPM_NAME="${PLUGIN_NPM_NAME:-@hongmin204324/openclaw-image-analysis}"
+# 默认固定带 configSchema 的最低版本；勿仅用裸包名，否则在镜像/缓存下可能仍拿到 1.0.3 等旧包
+# 覆盖示例：PLUGIN_NPM_SPEC='@hongmin204324/openclaw-image-analysis@1.0.8'
+PLUGIN_NPM_SPEC="${PLUGIN_NPM_SPEC:-${PLUGIN_NPM_NAME}@1.0.7}"
 PLUGIN_ID="openclaw-image-analysis"
+# 旧 manifest 使用的 id，需一并从配置里移除，避免网关仍校验旧扩展
+LEGACY_PLUGIN_ID="image-analysis-plugin"
 OPENCLAW_CONFIG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
 
 DOUBAO_API_KEY="${DOUBAO_API_KEY:?请设置环境变量 DOUBAO_API_KEY}"
@@ -14,20 +19,25 @@ OSS_ACCESS_KEY_SECRET="${OSS_ACCESS_KEY_SECRET:?请设置环境变量 OSS_ACCESS
 OSS_BUCKET="${OSS_BUCKET:?请设置环境变量 OSS_BUCKET}"
 
 # ── 1. 安装插件 ─────────────────────────────────────────────────────────
-echo "[1/3] 安装插件: $PLUGIN_NPM_NAME"
+echo "[1/3] 安装插件: $PLUGIN_NPM_SPEC"
 
-# 先清理 openclaw.json 中的过期条目，避免 openclaw 校验时找不到 manifest 报错
+# 先清理 openclaw.json 中的过期条目（含 installs 与旧 id），避免校验旧包 manifest
 if [ -f "$OPENCLAW_CONFIG" ]; then
   node -e "
 const fs = require('fs');
-const p = process.argv[1], id = process.argv[2];
+const p = process.argv[1], id = process.argv[2], legacy = process.argv[3];
 const cfg = JSON.parse(fs.readFileSync(p, 'utf8'));
-if (cfg.plugins && cfg.plugins.entries) delete cfg.plugins.entries[id];
-if (cfg.plugins && Array.isArray(cfg.plugins.allow))
-  cfg.plugins.allow = cfg.plugins.allow.filter(function(x) { return x !== id; });
+function rmPlugin(pid) {
+  if (cfg.plugins && cfg.plugins.entries) delete cfg.plugins.entries[pid];
+  if (cfg.plugins && cfg.plugins.installs) delete cfg.plugins.installs[pid];
+  if (cfg.plugins && Array.isArray(cfg.plugins.allow))
+    cfg.plugins.allow = cfg.plugins.allow.filter(function(x) { return x !== pid; });
+}
+rmPlugin(id);
+rmPlugin(legacy);
 fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
-" "$OPENCLAW_CONFIG" "$PLUGIN_ID"
-  echo "    已清理 openclaw.json 中的旧条目"
+" "$OPENCLAW_CONFIG" "$PLUGIN_ID" "$LEGACY_PLUGIN_ID"
+  echo "    已清理 openclaw.json 中 ${PLUGIN_ID} / ${LEGACY_PLUGIN_ID} 的 entries、installs、allow"
 fi
 
 PLUGIN_DIR="$HOME/.openclaw/extensions/$PLUGIN_ID"
@@ -38,7 +48,13 @@ fi
 
 TMP_DIR=$(mktemp -d)
 echo "    下载 tgz 到 $TMP_DIR ..."
-npm pack "$PLUGIN_NPM_NAME" --pack-destination "$TMP_DIR" --quiet
+if command -v npm >/dev/null 2>&1; then
+  REG_VER="$(npm view "$PLUGIN_NPM_NAME" version 2>/dev/null || true)"
+  if [ -n "$REG_VER" ]; then
+    echo "    registry 上 ${PLUGIN_NPM_NAME} 的 latest 版本: $REG_VER"
+  fi
+fi
+npm pack "$PLUGIN_NPM_SPEC" --pack-destination "$TMP_DIR" --quiet
 TGZ_FILE=$(ls "$TMP_DIR"/*.tgz | head -1)
 echo "    从本地安装: $TGZ_FILE"
 openclaw plugins install "$TGZ_FILE"
