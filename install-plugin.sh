@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ── 插件配置（通过环境变量覆盖，避免明文写在脚本里）──────────────────
-PLUGIN_PACKAGE="${PLUGIN_PACKAGE:-@hongmin204324/openclaw-image-analysis}"
+PLUGIN_PACKAGE="${PLUGIN_PACKAGE:-npm:@hongmin204324/openclaw-image-analysis}"
 PLUGIN_ID="image-analysis-plugin"
 OPENCLAW_CONFIG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
 
